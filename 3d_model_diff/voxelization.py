@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from os.path import isfile, join
 from os import listdir
 from torch.utils.data import DataLoader
-# import open3d as o3d
+import open3d as o3d
 
 # mesh_data = o3d.data.BunnyMesh()
 # print(mesh_data)
@@ -44,9 +44,9 @@ def gather_data(folder_name):
     dataset = []
     ctr = 0
     for file in model_files:
-        print(ctr)
-        ctr += 1
-        
+        print(str(file))
+        # ctr += 1
+        # print(str(file))
         voxels = mesh_to_voxel(folder_name+file)
         # exit(0)
         dataset.append(voxels)
@@ -69,16 +69,30 @@ def save_3d_model(vox_tensor):
 if __name__ == '__main__':
     # voxelize = mesh_to_voxel('sofa/train/sofa_0093.off')
     # visualize_model(voxelize)
-    chair = gather_data('3d_dataset/chair/train/')
-    np.save('3d_dataset/voxel_chairs',chair)
 
-    # desk = gather_data('desk/train/')
-    # np.save('voxel_desks',desk)
+    # np.save('/dcs/pg22/u2294454/fresh_diffusion_2/tst.npy',np.array([4]))
+    print('START.')
 
-    # sofa = gather_data('sofa/train/')
-    # np.save('voxel_sofas',sofa)
+    bathtub = gather_data('/dcs/pg22/u2294454/fresh_diffusion_2/3d_dataset/bathtub/train/')
+    np.save('/dcs/pg22/u2294454/fresh_diffusion_2/voxel_bathtubs.npy',bathtub)
+    print ('BATHTUB DONE.')
 
-    # bed = gather_data('bed/train/')
-    # np.save('voxel_beds',bed)
+    bed = gather_data('/dcs/pg22/u2294454/fresh_diffusion_2/3d_dataset/bed/train/')
+    np.save('/dcs/pg22/u2294454/fresh_diffusion_2/voxel_beds.npy',bed)
+    print ('BED DONE.')
+
+    desk = gather_data('/dcs/pg22/u2294454/fresh_diffusion_2/3d_dataset/desk/train/')
+    np.save('/dcs/pg22/u2294454/fresh_diffusion_2/voxel_desks.npy',desk)
+    print ('DESK DONE.')
+
+    monitor = gather_data('/dcs/pg22/u2294454/fresh_diffusion_2/3d_dataset/monitor/train/')
+    np.save('/dcs/pg22/u2294454/fresh_diffusion_2/voxel_monitors.npy',monitor)
+    print ('MONITOR DONE.')
+
+    toilet = gather_data('/dcs/pg22/u2294454/fresh_diffusion_2/3d_dataset/toilet/train/')
+    np.save('/dcs/pg22/u2294454/fresh_diffusion_2/voxel_toilets.npy',toilet)
+    print ('TOILET DONE.')
+
+
     # test = np.save('voxel_desks.npy')
     # print(test.shape)

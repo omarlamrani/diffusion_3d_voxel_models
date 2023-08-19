@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-#SBATCH --job-name=3d_diffusion # Job name for tracking
-#SBATCH --partition=falcon     # Partition you wish to use (see above for list)
+#SBATCH --job-name=voxel_models # Job name for tracking
+#SBATCH --partition=cpu-batch     # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=12    # Number of CPU threads used by your job
-#SBATCH --gres=gpu:1          # Number of GPUs to use 
+
 #SBATCH --time=2-00:00:00      # Job time limit set to 2 days (48 hours)
 #
 #SBATCH --mail-type=END,FAIL,TIME_LIMIT_50 # Events to send email on, remove if you don't want this
@@ -17,4 +17,4 @@ source /etc/profile.d/conda.sh
 
 ## Execute your program(s) ##
 module load CUDA
-srun -u python3.9 var_schedule.py
+srun -u python3 voxelization.py

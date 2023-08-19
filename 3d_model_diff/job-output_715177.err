@@ -1,0 +1,3 @@
+slurmstepd: error: *** JOB 715177 ON parrot-01 CANCELLED AT 2023-08-18T17:37:52 ***
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+slurmstepd: error: *** STEP 715177.0 ON parrot-01 CANCELLED AT 2023-08-18T17:37:52 ***
