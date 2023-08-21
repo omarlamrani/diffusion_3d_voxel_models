@@ -21,6 +21,31 @@ class VarianceScheduler:
 
         self.alphas = 1 - self.betas
         self.cumprod_alphas = torch.cumprod(self.alphas, dim=0) # change dim 0?
+        # self.alphas_cumprod_prev = np.append(1.0, self.cumprod_alphas[:-1])
+        self.alphas_cumprod_prev = torch.cat([torch.tensor([1.0]), self.cumprod_alphas[:-1]])
+        # self.alphas_cumprod_next = np.append(self.cumprod_alphas[1:], 0.0)
+        self.alphas_cumprod_next = torch.cat([self.cumprod_alphas[1:],torch.tensor([0.0])])
+        
+
+        # calculations for diffusion q(x_t | x_{t-1}) and others
+        self.sqrt_alphas_cumprod = np.sqrt(self.cumprod_alphas)
+        self.sqrt_one_minus_alphas_cumprod = np.sqrt(1.0 - self.cumprod_alphas)
+        self.log_one_minus_alphas_cumprod = np.log(1.0 - self.cumprod_alphas)
+        self.sqrt_recip_alphas_cumprod = np.sqrt(1.0 / self.cumprod_alphas)
+        self.sqrt_recipm1_alphas_cumprod = np.sqrt(1.0 / self.cumprod_alphas - 1)
+
+        # calculations for posterior q(x_{t-1} | x_t, x_0)
+        self.posterior_variance = (
+            self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.cumprod_alphas)
+        )
+        # log calculation clipped because the posterior variance is 0 at the
+        # beginning of the diffusion chain.
+        # self.posterior_log_variance_clipped = np.log(
+        #     np.append(self.posterior_variance[1], self.posterior_variance[1:])
+        # )
+        self.log_posterior_variance = torch.log(
+            torch.cat([self.posterior_variance[1:2], self.posterior_variance[1:]])
+        )
 
     def linear_beta_schedule(self,timesteps,start,end):
         return torch.linspace(start, end, timesteps).to(self.device)

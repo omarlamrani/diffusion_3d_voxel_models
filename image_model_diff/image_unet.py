@@ -304,9 +304,9 @@ class UNet(nn.Module):
 
 if __name__ == '__main__':
     # net = UNet(device="cpu")
-    net = UNet(device="cpu")
+    net = UNet(device="cpu",c_out=6)
     print(sum([p.numel() for p in net.parameters()]))
     x = torch.randn(3, 3, 64, 64)
     t = x.new_tensor([500] * x.shape[0])
-    y = x.new_tensor([1] * x.shape[0])
+    # y = x.new_tensor([1] * x.shape[0])
     print(net(x, t).shape)
