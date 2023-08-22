@@ -18,7 +18,7 @@ def train_model():
     model = UNet(device=gpu).float().to(gpu)
     optimizer = optim.AdamW(model.parameters(),lr=3e-4)
     mse = nn.MSELoss() #Will need variational lower bound frop variance prediction
-    var_schedule = VarianceScheduler(timesteps=1000,device=gpu)
+    var_schedule = VarianceScheduler(timesteps=1000,device=gpu,type='cosine')
     dataloader  = image_processing('/dcs/pg22/u2294454/fresh_diffusion/image_dataset')
     prog = tqdm(dataloader)
     epoch_loss = 10
@@ -40,8 +40,8 @@ def train_model():
             # prog.set_postfix(MSE=loss.item())
             epoch_loss = loss
         print(epoch_loss)
-        if epoch%250 == 0:
-            torch.save(model.state_dict(),'epoch_image'+str(epoch)+'_chairs_state_dict_'+str(epoch_loss)+'.pth')
+        if epoch%250 == 0 and not epoch == 0:
+            torch.save(model.state_dict(),'epoch_image_'+str(epoch)+'_cosine.pth')
 
 
 if __name__ == '__main__':
