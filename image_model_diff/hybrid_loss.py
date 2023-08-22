@@ -66,9 +66,9 @@ def q_posterior_mean_variance(x_0, x_t, t):
         # print(np.sqrt(var_schedule.alphas_cumprod_prev).shape)
         # print(x_0.shape)
         posterior_mean = (
-             _extract_into_tensor((var_schedule.betas * np.sqrt(var_schedule.alphas_cumprod_prev) / (1.0 - var_schedule.cumprod_alphas)),t,x_t.shape)
+             _extract_into_tensor((var_schedule.betas * torch.sqrt(var_schedule.alphas_cumprod_prev) / (1.0 - var_schedule.cumprod_alphas)),t,x_t.shape)
                 * x_0
-            + _extract_into_tensor((1.0 - var_schedule.alphas_cumprod_prev) * np.sqrt(var_schedule.alphas) / (1.0 - var_schedule.cumprod_alphas),t,x_t.shape) 
+            + _extract_into_tensor((1.0 - var_schedule.alphas_cumprod_prev) * torch.sqrt(var_schedule.alphas) / (1.0 - var_schedule.cumprod_alphas),t,x_t.shape) 
                 * x_t)
         posterior_variance = _extract_into_tensor(
              (var_schedule.betas * (1.0 - var_schedule.alphas_cumprod_prev) / (1.0 - var_schedule.cumprod_alphas)),
@@ -102,7 +102,7 @@ def p_mean_variance(model, x_t, t):
         """
 
         B, C = x_t.shape[:2]
-        print(f'C: {C}')
+        # print(f'C: {C}')
 
         model_output = model(x_t, t)
 
@@ -110,7 +110,7 @@ def p_mean_variance(model, x_t, t):
         min_log = _extract_into_tensor(
             var_schedule.log_posterior_variance, t, x_t.shape
         )
-        max_log = _extract_into_tensor(np.log(var_schedule.betas), t, x_t.shape)
+        max_log = _extract_into_tensor(torch.log(var_schedule.betas), t, x_t.shape)
         # The model_var_values is [-1, 1] for [min_var, max_var].
         frac = (model_var_values + 1) / 2
         model_log_variance = frac * max_log + (1 - frac) * min_log
@@ -198,12 +198,12 @@ def _extract_into_tensor(arr, timesteps, broadcast_shape):
 
 
 epochs = 502
-gpu = 'cpu'
+gpu = 'cuda'
 model = UNet(device=gpu,c_out=6).float().to(gpu)
 optimizer = optim.AdamW(model.parameters(),lr=3e-4)
 mse = nn.MSELoss() #Will need variational lower bound frop variance prediction
-var_schedule = VarianceScheduler(timesteps=1000,device=gpu)
-folder = r"C:\Users\lamra\OneDrive\test\Desktop\fresh_diffusion_2\image_dataset"
+var_schedule = VarianceScheduler(timesteps=1000,device=gpu,type='cosine')
+folder = r"/dcs/pg22/u2294454/fresh_diffusion_2/image_dataset"
 dataloader  = image_processing(folder)
 prog = tqdm(dataloader)
 epoch_loss = 10
@@ -212,45 +212,51 @@ for epoch in range(epochs):
     # progress = tqdm()
     print(f'==> EPOCH N*{epoch}')
     for vox_models,_ in dataloader:
-        print(ctr)
+        # print(ctr)
         ctr += 1
         vox_models = vox_models.float().to(gpu)
         t = var_schedule.timesteps_sampling(vox_models.shape[0]).to(gpu)
         # forward q_sample
         x_t, noise = var_schedule.forward_diffusion_sample(vox_models,t)
+        x_t.to(gpu)
+        noise.to(gpu)
         # print(x_t.dtype)
         # print(t.shape)
         # print(x_t.shape)
         # print(noise.shape)
 
         # KL_RESCALED LOSS_TYPE ==> HYBRID LOSS
-        mod_out = model(x_t.float(),t) # 1st 3 channels (dim1) = mean, last 3 = var
+        mod_out = model(x_t.float(),t).to(gpu) # 1st 3 channels (dim1) = mean, last 3 = var
         # print(mod_out.shape) # (B,6,64,64)
 
         mean_noise, var_noise = torch.split(mod_out,3,dim=1)
+        mean_noise.to(gpu)
+        var_noise.to(gpu)
         # print(mean_noise.shape)
         # print(var_noise.shape)
 
         # update only the var not the mean to avoid correlated predictions
-        locked_mean_only_var = torch.cat([mean_noise.detach(),var_noise], dim=1)
+        locked_mean_only_var = torch.cat([mean_noise.detach(),var_noise], dim=1).to(gpu)
 
         l_vlb, pred_x_0 = vb_term(model,vox_models,x_t,t,locked_mean_only_var)
+        l_vlb.to(gpu)
+        pred_x_0.to(gpu)
         # print(l_vlb)
 
-        rescaled_l_vlb = l_vlb * var_schedule.timesteps / 1000
+        rescaled_l_vlb = (l_vlb * var_schedule.timesteps / 1000).to(gpu)
         # print(rescaled_l_vlb)
 
-        mse = (noise - mean_noise) ** 2
-        full_mse = mse.mean(dim=list(range(1, len(mse.shape))))
+        mse = ((noise - mean_noise) ** 2).to(gpu)
+        full_mse = mse.mean(dim=list(range(1, len(mse.shape)))).to(gpu)
 
         loss = (full_mse + rescaled_l_vlb).mean()
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        print('DONE')
+        # print('DONE')
        
         epoch_loss = loss
     print(epoch_loss)
-    if epoch%250 == 0:
-        torch.save(model.state_dict(),'epoch_image'+str(epoch)+'_chairs_state_dict_'+str(epoch_loss)+'.pth')
+    if epoch%250 == 0 and not epoch == 0:
+        torch.save(model.state_dict(),'epoch_image_cosine_var'+str(epoch)+'_glacier_'+str(epoch_loss)+'.pth')

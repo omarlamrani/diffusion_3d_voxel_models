@@ -22,7 +22,7 @@ def image_processing(folder_name):
     ])
 
     dataset = datasets.ImageFolder(folder_name, transform=transform)
-    dataloader = DataLoader(dataset, batch_size=8, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
     return dataloader
 
 
@@ -67,6 +67,6 @@ def save_image(vox_tensor):
 if __name__ == '__main__':
     # visualize_image(x)
     # tensor_imgs = load_all_images('/dcs/pg22/u2294454/fresh_diffusion/image_dataset/Desert/')
-    dataload = image_processing('/dcs/pg22/u2294454/fresh_diffusion/image_dataset')
+    dataload = image_processing('/dcs/pg22/u2294454/fresh_diffusion/image_dataset/glacier')
     print(len(dataload))
     # print(tensor_imgs[0].shape)

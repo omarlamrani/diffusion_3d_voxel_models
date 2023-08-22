@@ -17,4 +17,4 @@ source /etc/profile.d/conda.sh
 
 ## Execute your program(s) ##
 module load CUDA
-srun -u python3 voxelization.py
+srun -u python3 hybrid_loss.py
