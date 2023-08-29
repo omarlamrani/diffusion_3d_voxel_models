@@ -19,7 +19,7 @@ def train_model():
     optimizer = optim.AdamW(model.parameters(),lr=3e-4)
     mse = nn.MSELoss() #Will need variational lower bound frop variance prediction
     var_schedule = VarianceScheduler(timesteps=1000,device=gpu)
-    dataloader = load_3d_model('/dcs/pg22/u2294454/fresh_diffusion/voxel_chairs.npy',mode='train')
+    dataloader = load_3d_model('/dcs/pg22/u2294454/fresh_diffusion/voxel_beds.npy',mode='train')
     # prog = tqdm(dataloader)
     epoch_loss = 10
     for epoch in range(epochs):
@@ -41,7 +41,7 @@ def train_model():
             epoch_loss = loss
         print(epoch_loss)
         if epoch%250 == 0:
-            torch.save(model.state_dict(),'epoch_'+str(epoch)+'_chairs_gpu_'+str(epoch_loss)+'.pth')
+            torch.save(model.state_dict(),'epoch_'+str(epoch)+'_beds_gpu_'+str(epoch_loss)+'.pth')
 
 
 if __name__ == '__main__':

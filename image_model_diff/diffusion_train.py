@@ -19,7 +19,7 @@ def train_model():
     optimizer = optim.AdamW(model.parameters(),lr=3e-4)
     mse = nn.MSELoss() #Will need variational lower bound frop variance prediction
     var_schedule = VarianceScheduler(timesteps=1000,device=gpu,type='cosine')
-    dataloader  = image_processing('/dcs/pg22/u2294454/fresh_diffusion/image_dataset')
+    dataloader  = image_processing('/dcs/pg22/u2294454/fresh_diffusion_2/image_dataset')
     prog = tqdm(dataloader)
     epoch_loss = 10
     for epoch in range(epochs):
