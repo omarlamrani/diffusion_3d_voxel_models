@@ -237,3 +237,5 @@ tensor(0.0015, device='cuda:0', grad_fn=<MeanBackward0>)
 ==> EPOCH N*112
 tensor(0.0004, device='cuda:0', grad_fn=<MeanBackward0>)
 ==> EPOCH N*113
+tensor(7.8453e-05, device='cuda:0', grad_fn=<MeanBackward0>)
+==> EPOCH N*114
