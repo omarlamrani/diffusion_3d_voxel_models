@@ -34,7 +34,7 @@ def sample(self,model,n):
         
         return x.reshape(64,64,64).to(self.device)
     
-def sample_with_var(model,n,timesteps,device,var_schedule):
+def sample_with_var(model,n,timesteps,device,var_schedule,y):
     model.eval()
     with torch.no_grad():
         # generate random shit using normal dist
@@ -46,7 +46,7 @@ def sample_with_var(model,n,timesteps,device,var_schedule):
         for i in tqdm(reversed(range(0,timesteps)), position=0):
             t = (torch.ones(n)*i).long().to(device)
             print(i)
-            pred_noise,_,pred_log_var,_ = p_mean_variance(model,sample,t,var_schedule)
+            pred_noise,_,pred_log_var,_ = p_mean_variance(model,sample,t,var_schedule,y)
             eps = torch.randn_like(sample)
             print(t)
             nonzero_mask = (
@@ -86,12 +86,22 @@ def sample_with_var(model,n,timesteps,device,var_schedule):
 if __name__ == '__main__':
 
     device = 'cuda'
-    path = '/dcs/pg22/u2294454/fresh_diffusion_2/3d_model_diff/epoch_models_cosine_var350_chair.pth'
-    model = UNet(c_out=2,device=device).to(device)
+    path = '/dcs/pg22/u2294454/fresh_diffusion_2/3d_model_diff/epoch_model_cosine_var50_uncond.pth'
+    # model = UNet(c_out=2,device=device).to(device)
+    model = UNet_conditional(device=device,c_out=2,num_classes=6).to(device)
     model.load_state_dict(torch.load(path))
     model.eval()
     var = VarianceScheduler(timesteps=500,device=device)
-    x, pre_x, post_x = sample_with_var(model,1,var.timesteps,device,var)
+    label_map = {
+        'bathtub':0,
+        'monitor':1,
+        'bed':2,
+        'chair':3,
+        'toilet':4,
+        'desk':5
+    }
+    y = torch.tensor([0]).to(device)
+    x, pre_x, post_x = sample_with_var(model,1,var.timesteps,device,var,y)
     x = x.to(device)
     pre_x = pre_x.to(device)
     post_x = post_x.to(device)

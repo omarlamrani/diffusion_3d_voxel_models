@@ -1,0 +1,14 @@
+voxel_monitors.npy
+loaded
+voxel_toilets.npy
+loaded
+voxel_desks.npy
+loaded
+voxel_chairs.npy
+loaded
+voxel_bathtubs.npy
+loaded
+voxel_beds.npy
+loaded
+==> EPOCH N*0
+tensor(0.0068, device='cuda:0', grad_fn=<MeanBackward0>)

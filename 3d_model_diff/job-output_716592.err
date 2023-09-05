@@ -1,0 +1,14 @@
+<__array_function__ internals>:5: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+/dcs/pg22/u2294454/fresh_diffusion_2/3d_model_diff/label_data.py:46: UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor. (Triggered internally at ../torch/csrc/utils/tensor_new.cpp:245.)
+  data_tensor = torch.tensor(data_list)
+  0%|          | 0/2519 [00:00<?, ?it/s]Traceback (most recent call last):
+  File "/dcs/pg22/u2294454/fresh_diffusion_2/3d_model_diff/hybrid_loss.py", line 307, in <module>
+    np.save('cos_var_losses_uncond',loss_timestep)
+  File "<__array_function__ internals>", line 5, in save
+  File "/dcs/pg22/u2294454/.local/lib/python3.9/site-packages/numpy/lib/npyio.py", line 528, in save
+    arr = np.asanyarray(arr)
+  File "/dcs/pg22/u2294454/.local/lib/python3.9/site-packages/torch/_tensor.py", line 970, in __array__
+    return self.numpy()
+TypeError: can't convert cuda:0 device type tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
+  0%|          | 0/2519 [22:22<?, ?it/s]
+srun: error: falcon-03: task 0: Exited with exit code 1

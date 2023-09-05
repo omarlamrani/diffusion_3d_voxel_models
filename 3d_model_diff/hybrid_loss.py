@@ -213,7 +213,9 @@ if __name__ == '__main__':
     epochs = 502
     gpu = 'cuda'
     model = UNet_conditional(device=gpu,c_out=2,num_classes=6).float().to(gpu)
+    # model.load_state_dict(torch.load('/dcs/pg22/u2294454/fresh_diffusion_2/3d_model_diff/epoch_model_cosine_var50_uncond.pth'))
     optimizer = optim.AdamW(model.parameters(),lr=3e-4)
+    # optimizer.load_state_dict(torch.load('/dcs/pg22/u2294454/fresh_diffusion_2/3d_model_diff/epoch_opt_cosine_var50_uncond.pth'))
     mse = nn.MSELoss() #Will need variational lower bound frop variance prediction
     var_schedule = VarianceScheduler(timesteps=750,device=gpu,type='cosine')
     # folder = r"/dcs/pg22/u2294454/fresh_diffusion_2/image_dataset"
@@ -224,11 +226,13 @@ if __name__ == '__main__':
     #      print(x)
     #      print(x.shape)
     #      exit(0)
+    loss_timestep = []
     prog = tqdm(dataloader)
     epoch_loss = 10
     ctr = 0
     ema = EMA(beta=0.99)
     mod_copy_ema = copy.deepcopy(model).eval().requires_grad_(False)
+    # mod_copy_ema.load_state_dict(torch.load('/dcs/pg22/u2294454/fresh_diffusion_2/3d_model_diff/epoch_ema_cosine_var50_uncond.pth'))
     for epoch in range(epochs):
         # progress = tqdm()
         print(f'==> EPOCH N*{epoch}')
@@ -285,6 +289,8 @@ if __name__ == '__main__':
             full_mse = mse.mean(dim=list(range(1, len(mse.shape)))).to(gpu)
 
             loss = (full_mse + rescaled_l_vlb).mean()
+            if ctr%20 == 0 and epoch < 5:
+                loss_timestep.append(loss)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -293,7 +299,9 @@ if __name__ == '__main__':
         print(epoch_loss)
 
 
-        if (epoch%50 == 0 and not epoch == 0):
+        if epoch%50 == 0 or epoch == 120 or epoch == 1:
+            
             torch.save(model.state_dict(),'epoch_model_cosine_var'+str(epoch)+'_uncond'+'.pth')
             torch.save(mod_copy_ema.state_dict(), 'epoch_ema_cosine_var'+str(epoch)+'_uncond'+'.pth')
             torch.save(optimizer.state_dict(), 'epoch_opt_cosine_var'+str(epoch)+'_uncond'+'.pth')
+            # np.save('cos_var_losses_uncond',loss_timestep)
