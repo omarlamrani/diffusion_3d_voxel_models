@@ -1,5 +1,5 @@
 import sys
-from base_unet_3d_new import UNetModel,EMA
+from base_unet_3d_new import UNetModel
 from torch import optim
 import torch.nn as nn
 from var_schedule import *
@@ -8,6 +8,13 @@ from label_data import *
 import copy
 from data_utils import load_3d_model
 from hybrid_loss import *
+
+# print(sys.version)
+
+# def get_loss(model, x_0, t):
+#     x_noisy, noise = forward_diffusion_sample(x_0, t)
+#     noise_pred = model(x_noisy, t)
+#     return F.l1_loss(noise, noise_pred)
 
 def train_model():
     # epochs = 502
@@ -45,7 +52,7 @@ def train_model():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--epochs",
-                        default=502,
+                        default=501,
                         help="amout of passes through the dataset",
                         type=int)
     
@@ -55,22 +62,22 @@ def train_model():
                         type=str)
     
     parser.add_argument("--sched",
-                        default='linear',
-                        help="choose between 'cosine' or 'linear' schedule",
+                        default='cos',
+                        help="choose between cosine or linear schedule",
                         type=str)
     
     parser.add_argument("--timesteps",
-                        default=500,
+                        default=5,
                         help="choose noising timesteps",
                         type=int)
     
     parser.add_argument("--loss",
-                        default='mse',
+                        default='hybrid',
                         help="choose between 'mse' or 'hybrid' loss ",
                         type=str)
     
     parser.add_argument("--ema",
-                        default=False,
+                        default=True,
                         help="use EMA or not ",
                         type=bool)
 
@@ -88,17 +95,19 @@ def train_model():
     loss_func = None
 
     if loss_type == 'mse':
-        loss_func = nn.MSELoss()
-        model = UNetModel(device=device).float().to(device)
+        loss_func = nn.MSELoss(device=device)
+        model = model = UNet_conditional(device=device,num_classes=6).float().to(device)
     else:
         loss_func = HybridLoss(device=device)
-        model = UNetModel(device=device,c_out=2).float().to(device)
+        model = UNet_conditional(device=device,c_out=2,num_classes=6).float().to(device)
 
-    data_path = 'C:\\Users\\lamra\\OneDrive\\test\\Desktop\\fresh_diffusion_2\\voxel_beds.npy'
-    dataloader = load_3d_model(data_path,mode='train')
+    data_path = 'C:\\Users\\lamra\\OneDrive\\test\\Desktop\\fresh_diffusion_2'
+    files = gather_npy_filenames(data_path)
+    labeled_data = label_gathered_datasets(files,data_path)
+    dataloader = label_dataloader(labeled_data)
 
     # folder = r"/dcs/pg22/u2294454/fresh_diffusion_2/image_dataset"
-    
+    print('data labelled')
 
     # files = gather_npy_filenames('/dcs/pg22/u2294454/fresh_diffusion_2')
     # labeled_data = label_gathered_datasets(files)
@@ -124,27 +133,39 @@ def train_model():
     if loss_type == 'mse':
         for epoch in range(epochs):
             print(f'==> EPOCH N*{epoch}')
-            for i, vox_models in enumerate(dataloader):
-                vox_models = vox_models.float().to(device)
+            for i, vox_models, labels,o in enumerate(dataloader):
+                print(o)
+                print(type(o))
+                print(vox_models)
+                print((vox_models))
+                vox_models = vox_models.to(device)
+                if np.random.random() < 0.1:
+                    labels = torch.tensor([2310]).to(device)
+                #  print('None')
+                labels = labels.to(device)
                 t = var_schedule.sample_timesteps(vox_models.shape[0]).to(device)
                 x_t, noise = var_schedule.fwd_diff_t(vox_models,t)
                 pred_noise = model(x_t.float(),t)
-                loss = loss_func(noise,pred_noise)
+                loss = mse(noise,pred_noise)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 if ema_option: ema.step_ema(mod_copy_ema,model)
                 epoch_loss = loss
-                # print(i)
-            if (epoch%100 == 0 and not epoch == 0):
-                torch.save(model.state_dict(),'new_e'+str(epoch)+'_t500_chair_noEMA_MSE.pth')
-                # torch.save(mod_copy_ema.state_dict(), 'epoch_ema_cosine_var'+str(epoch)+'_uncond'+'.pth')
-                # torch.save(optimizer.state_dict(), 'epoch_opt_cosine_var'+str(epoch)+'_uncond'+'.pth')
+            if (epoch%50 == 0 and not epoch == 0):
+                torch.save(model.state_dict(),'epoch_model_cosine_var'+str(epoch)+'_uncond'+'.pth')
+                torch.save(mod_copy_ema.state_dict(), 'epoch_ema_cosine_var'+str(epoch)+'_uncond'+'.pth')
+                torch.save(optimizer.state_dict(), 'epoch_opt_cosine_var'+str(epoch)+'_uncond'+'.pth')
 
     else:
+
         for epoch in range(epochs):
             print(f'==> EPOCH N*{epoch} <==')
-            for i, vox_models in enumerate(dataloader): 
+            for i, (vox_models, labels) in enumerate(dataloader):
+                print(vox_models)
+                print(type(vox_models))
+                print(labels)
+                print(type(labels))
                 vox_models = vox_models.float().to(device)
                 t = var_schedule.sample_timesteps(vox_models.shape[0]).to(device)
                 # forward q_sample
@@ -153,7 +174,7 @@ def train_model():
                 noise.to(device)
                 print(i)
                 # KL_RESCALED LOSS_TYPE ==> HYBRID LOSS
-                mod_out = model(x_t.float(),t).to(device) # 1st 3 channels (dim1) = mean, last 3 = var
+                mod_out = model(x_t.float(),t,labels).to(device) # 1st 3 channels (dim1) = mean, last 3 = var
                 # print(mod_out.shape) # (B,6,64,64)
 
                 mean_noise, var_noise = torch.split(mod_out,1,dim=1)
@@ -161,7 +182,7 @@ def train_model():
                 var_noise.to(device)
                 # print(mean_noise.shape)
                 # print(var_noise.shape)
-                loss = loss_func.calculate_loss(model,vox_models,x_t,t,var_schedule,mean_noise,var_noise,noise)
+                loss = loss_func.calculate_loss(model,vox_models,x_t,t,var_schedule,mean_noise,var_noise,noise,labels)
                 # # update only the var not the mean to avoid correlated predictions
                 # locked_mean_only_var = torch.cat([mean_noise.detach(),var_noise], dim=1).to(device)
 

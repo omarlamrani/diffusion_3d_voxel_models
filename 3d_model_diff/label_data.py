@@ -4,12 +4,12 @@ import os
 from torch.utils.data import DataLoader
 
 
-def gather_npy_filenames(directory_path):
+def gather_npy_filenames(directory_path): #CHANGE TO TENSOR
     file_extension = ".npy"
     npy_files = [file for file in os.listdir(directory_path) if file.endswith(file_extension)]
     return npy_files
 
-def label_gathered_datasets(npy_files):
+def label_gathered_datasets(npy_files,directory_path):
     total_ds = []
     label_map = {
         'bathtub':0,
@@ -21,7 +21,7 @@ def label_gathered_datasets(npy_files):
     }
     for file in npy_files:
         print(file)
-        path = '/dcs/pg22/u2294454/fresh_diffusion_2/'+file
+        path = directory_path+'\\'+file
         data = np.load(path)
         print('loaded')
         label = file[6:-5]
@@ -34,7 +34,7 @@ def label_gathered_datasets(npy_files):
     # for x in total_ds:
     #     print(np.array(x).shape)
     total_ds = np.concatenate(total_ds)
-    return total_ds
+    return np.array(total_ds)
     # return np.random.shuffle(total_ds)
 
 def add_label(model,label):

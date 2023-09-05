@@ -1,5 +1,4 @@
-# import sys
-from base_unet_3d import UNet
+from base_unet_3d_new import UNetModel
 # from torch import optim
 # import torch.nn as nn
 from var_schedule import *
@@ -7,6 +6,7 @@ from tqdm import tqdm
 # from voxelization import load_3d_model
 import torch
 from hybrid_loss import *
+from data_utils import load_3d_model,visualize_model
 # import numpy as np 
 
 def sample(self,model,n):
@@ -34,15 +34,17 @@ def sample(self,model,n):
         
         return x.reshape(64,64,64).to(self.device)
     
-def sample_with_var(model,n,timesteps,device,var_schedule,y):
+def sample_with_var(model,n,timesteps,device,var_schedule,y=None):
     model.eval()
+    print('gud')
+    exit(0)
     with torch.no_grad():
         # generate random shit using normal dist
         # x = torch.randn((n,1,64,64,64)).to(device)
         sample =  torch.randn((n,1,64,64,64)).to(device)
         # pred_x = None
-        pre_sample = 0
-        post_sample = 0
+        # pre_sample = 0
+        # post_sample = 0
         for i in tqdm(reversed(range(0,timesteps)), position=0):
             t = (torch.ones(n)*i).long().to(device)
             print(i)
@@ -53,14 +55,14 @@ def sample_with_var(model,n,timesteps,device,var_schedule,y):
                 (t != 0).float().view(-1, *([1] * (len(sample.shape) - 1)))
             )
             # pre
-            if i == 0:
-                pre_sample = sample
+            # if i == 0:
+            #     pre_sample = sample
             sample = pred_noise + nonzero_mask * torch.exp(0.5*pred_log_var)*eps
-            if i == 0:
-                nonzero_mask = (
-                (t != 99).float().view(-1, *([1] * (len(sample.shape) - 1)))
-                )
-                post_sample = pred_noise + nonzero_mask * torch.exp(0.5*pred_log_var)*eps
+            # if i == 0:
+            #     nonzero_mask = (
+            #     (t != 99).float().view(-1, *([1] * (len(sample.shape) - 1)))
+            #     )
+            #     post_sample = pred_noise + nonzero_mask * torch.exp(0.5*pred_log_var)*eps
 
             # print(sample)
             # print(x)
@@ -78,20 +80,20 @@ def sample_with_var(model,n,timesteps,device,var_schedule,y):
     # sample = (sample * 255).type(torch.uint8)
     # print('VALUE OF X POST 255')
     # print(sample)
-    return sample, pre_sample, post_sample
+    return sample
 
 
 
 
 if __name__ == '__main__':
 
-    device = 'cuda'
-    path = '/dcs/pg22/u2294454/fresh_diffusion_2/3d_model_diff/epoch_model_cosine_var50_uncond.pth'
+    device = 'cpu'
+    path = 'C:\\Users\\lamra\\OneDrive\\test\Desktop\\fresh_diffusion_2\\3d_model_diff\\epoch_500_beds_gpu_cos_mean_var.pth'
     # model = UNet(c_out=2,device=device).to(device)
-    model = UNet_conditional(device=device,c_out=2,num_classes=6).to(device)
-    model.load_state_dict(torch.load(path))
+    model = UNetModel(device=device,c_out=2).to(device)
+    model.load_state_dict(torch.load(path,map_location=device))
     model.eval()
-    var = VarianceScheduler(timesteps=500,device=device)
+    var = VarianceScheduler(timesteps=5,device=device,type='cos')
     label_map = {
         'bathtub':0,
         'monitor':1,
@@ -100,48 +102,47 @@ if __name__ == '__main__':
         'toilet':4,
         'desk':5
     }
-    y = torch.tensor([0]).to(device)
-    x, pre_x, post_x = sample_with_var(model,1,var.timesteps,device,var,y)
+    y = torch.tensor([3]).to(device)
+    x = sample_with_var(model,1,var.timesteps,device,var)
     x = x.to(device)
-    pre_x = pre_x.to(device)
-    post_x = post_x.to(device)
+    # pre_x = pre_x.to(device)
+    # post_x = post_x.to(device)
     # im = Image.fromarray(x.cpu().numpy())
     # im.save("your_file.jpeg")
-    print(x.shape)
+    print('sample done')
     torch.save(x,'model_test.pt')
     # torch.save(pre_x,'pre_model_test.pt')
     # torch.save(post_x,'post_model_test.pt')
-
-    
+    example = load_3d_model('model_test.pt')
+    visualize_model(example)
     ##############################################################################################
-    def img_gen(file,strin):
-        x = torch.load(file)
-        # transform = T.ToPILImage()
-        print(x)
-        x = x.clip(min=0, max=1)
-        x = torch.round(x).type(torch.uint8)
-        x = (x * 255).type(torch.uint8)
-        # x = ((x+1)*127.5).clamp(0, 255).to(torch.uint8)
-        torch.reshape(x,(64,64,64))
-        # convert the tensor to PIL image using above transform
-        # img = transform(x)
-        cuts = [0,5,10,15,20,25,30,35,40,45,50,55,60]
+    # def img_gen(file,strin):
+    #     x = torch.load(file)
+    #     # transform = T.ToPILImage()
+    #     print(x)
+    #     x = x.clip(min=0, max=1)
+    #     x = torch.round(x).type(torch.uint8)
+    #     x = (x * 255).type(torch.uint8)
+    #     # x = ((x+1)*127.5).clamp(0, 255).to(torch.uint8)
+    #     torch.reshape(x,(64,64,64))
+    #     # convert the tensor to PIL image using above transform
+    #     # img = transform(x)
+    #     cuts = [0,5,10,15,20,25,30,35,40,45,50,55,60]
 
-        for ctr, cut in enumerate(cuts):
-            iamg = x.transpose(0,2)[ctr].cpu().numpy()
-            print(iamg)
-            print(iamg.shape)
-            iamg = np.reshape(iamg,(64,64))
-            # print(transform(x[ctr]))
-            print('#################################################')
-            image = Image.fromarray(iamg, 'L')  # 'L' mode is for grayscale images
+    #     for ctr, cut in enumerate(cuts):
+    #         iamg = x.transpose(0,2)[ctr].cpu().numpy()
+    #         print(iamg)
+    #         print(iamg.shape)
+    #         iamg = np.reshape(iamg,(64,64))
+    #         # print(transform(x[ctr]))
+    #         print('#################################################')
+    #         image = Image.fromarray(iamg, 'L')  # 'L' mode is for grayscale images
 
-    # Save the image
-            image.save(strin+'_bin2_new_img_'+str(ctr)+'.JPG')
-        # img.save("models_"+str(ctr)+".jpg")
-    # display the PIL image
-    img_gen('model_test.pt','x')
-    # img_gen('pre_model_test.pt', 'pre_x')
-    # img_gen('post_model_test.pt', 'post_x')
-    print('ok')
-    
+    # # Save the image
+    #         image.save(strin+'_bin2_new_img_'+str(ctr)+'.JPG')
+    #     # img.save("models_"+str(ctr)+".jpg")
+    # # display the PIL image
+    # img_gen('model_test.pt','x')
+    # # img_gen('pre_model_test.pt', 'pre_x')
+    # # img_gen('post_model_test.pt', 'post_x')
+    # print('ok')
