@@ -33,13 +33,13 @@ class HybridLoss():
 
         return (full_mse + rescaled_l_vlb).mean()
 
-def vlb (model,x_0, x_t, t,var,y=None):
+def vlb (model,x_0, x_t, t,locked_output,var,y=None):
 
     ''' Get VLB'''
 
-    (true_mean, _, true_log_var) = q_mean_var(x_0, x_t, t,var)
+    (true_mean, true_var, true_log_var) = q_mean_var(x_0, x_t, t,var)
         
-    model_mean, _, model_log_variance, _ = p_mean_var(model, x_t, t,var,y)
+    model_mean, true_var, model_log_variance,eps_from_x_0 = p_mean_var(model, x_t, t,var,y)
     
     kl = normal_kl(
         true_mean, true_log_var, model_mean, model_log_variance
@@ -54,6 +54,7 @@ def vlb (model,x_0, x_t, t,var,y=None):
     decoder_nll = decoder_nll.mean(dim=list(range(1, len(decoder_nll.shape)))) / np.log(2.0)
 
     output = torch.where((t == 0), decoder_nll, kl) 
+    return output, eps_from_x_0
 
 def q_mean_var(x_0, x_t, t,var_schedule):
         ''' Compute both the mean and variance '''

@@ -17,4 +17,4 @@ source /etc/profile.d/conda.sh
 
 ## Execute your program(s) ##
 module load CUDA
-srun -u python3.9 diffusion_train.py
+srun -u python3.9 diffusion_train.py --epochs 502 --device 'cuda' --sched 'linear' --timesteps 750 --loss 'mse' --ema False

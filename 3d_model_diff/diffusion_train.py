@@ -21,7 +21,7 @@ def train_model():
                         type=int)
     
     parser.add_argument("--device",
-                        default='cpu',
+                        default='cuda',
                         help="choose between cpu or cuda(gpu)",
                         type=str)
     
@@ -31,12 +31,12 @@ def train_model():
                         type=str)
     
     parser.add_argument("--timesteps",
-                        default=1,
+                        default=750,
                         help="choose noising timesteps",
                         type=int)
     
     parser.add_argument("--loss",
-                        default='mse',
+                        default='hybrid',
                         help="choose between 'mse' or 'hybrid' loss ",
                         type=str)
     
