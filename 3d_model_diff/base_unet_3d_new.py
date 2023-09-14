@@ -189,7 +189,7 @@ class UNetModel(nn.Module): #gud
 
     def pos_encoding(self, t, channels):
         num_timescales = channels // 2
-        inv_freq = torch.reciprocal(10000** (torch.arange(0, channels, 2, device=self.device) / channels))
+        inv_freq = 1 / (10000** (torch.arange(0, channels, 2, device=self.device) / channels))
         in_pos = t.repeat(1, num_timescales) * inv_freq
         return torch.cat([torch.sin(in_pos), torch.cos(in_pos)], dim=-1)
     
@@ -197,88 +197,113 @@ class UNetModel(nn.Module): #gud
         t = t.unsqueeze(-1)
         t = self.pos_encoding(t, self.time_embed_dim).to(self.device)
 
-        init = self.in_layer(x)
-        x1 = init
-        # Downward pass
-        skip_connections = []
-        for down_block in self.down_blocks:
-            x1 = down_block(x1, t)
-            skip_connections.append(x1)
+        in1 = self.in_layer(x)
+
+        down1 = self.down_blocks[0](in1,t)
+        down2 = self.down_blocks[1](down1,t)
+        down3 = self.down_blocks[2](down2,t)
+
+        mid = self.middle_blocks[0](down3)
+        mid = self.middle_blocks[1](mid)
+        mid = self.middle_blocks[2](mid)
+
+        up = self.up_blocks[0](mid,down2,t)
+        up = self.up_blocks[1](up,down1,t)
+        up = self.up_blocks[2](up,in1,t)
+
+        out1 = self.out_layer(up)
+
+        return out1
+        # x1 = init
+        # # Downward pass
+        # skip_connections = []
+        # for down_block in self.down_blocks:
+        #     x1 = down_block(x1, t)
+        #     skip_connections.append(x1)
         
-        # Bottom block
-        x_bot = x1
-        for mid_block in self.middle_blocks:
-            x_bot = mid_block(x_bot)
+        # # Bottom block
+        # x_bot = x1
+        # for mid_block in self.middle_blocks:
+        #     x_bot = mid_block(x_bot)
 
-        # Upward pass
-        skip_connections.pop()
-        x_up_1 = self.up_blocks[0](x_bot,skip_connections.pop(),t)
-        x_up_2 = self.up_blocks[1](x_up_1,skip_connections.pop(),t)
-        x_up_3 = self.up_blocks[2](x_up_2,init,t)
+        # # Upward pass
+        # skip_connections.pop()
+        # x_up_1 = self.up_blocks[0](x_bot,skip_connections.pop(),t)
+        # x_up_2 = self.up_blocks[1](x_up_1,skip_connections.pop(),t)
+        # x_up_3 = self.up_blocks[2](x_up_2,init,t)
 
-        output = self.out_layer(x_up_3)
+        # output = self.out_layer(x_up_3)
 
-        return output
+        # return output
 
-class UNet_conditional(nn.Module):
-    def __init__(self, c_in=1, c_out=1, time_dim=256, num_classes=-1, device="cuda"):
-        super().__init__()
+class UNetModel_conditional(nn.Module):
+    def __init__(self, channels_in=1, channels_out=1, time_embed_dim=256, num_classes=-1, device="cuda"):
+        super(UNetModel_conditional, self).__init__()
         self.device = device
-        self.time_dim = time_dim
-        self.inc = DoubleAdjConv(c_in, 64)
-        self.down1 = DownsampleBlock(64, 128)
-        self.down2 = DownsampleBlock(128, 256)
-        self.down3 = DownsampleBlock(256, 256)
-
-        self.bot1 = DoubleAdjConv(256, 512)
-        self.bot2 = DoubleAdjConv(512, 512)
-        self.bot3 = DoubleAdjConv(512, 256)
-
-        self.up1 = UpsampleBlock(512, 128)
-        self.up2 = UpsampleBlock(256, 64)
-        self.up3 = UpsampleBlock(128, 64)
-        self.outc = nn.Conv3d(64, c_out, kernel_size=1)
+        self.time_embed_dim = time_embed_dim
+        
+        self.in_layer = DoubleAdjConv(channels_in, 64)
+        self.down_blocks = nn.ModuleList([
+            DownsampleBlock(64, 128),
+            DownsampleBlock(128, 256),
+            DownsampleBlock(256, 256),
+        ])
+        
+        self.middle_blocks = nn.ModuleList([
+            DoubleAdjConv(256, 512),
+            DoubleAdjConv(512, 512),
+            DoubleAdjConv(512, 256),
+        ])
+        
+        self.up_blocks = nn.ModuleList([
+            UpsampleBlock(512, 128),
+            UpsampleBlock(256, 64),
+            UpsampleBlock(128, 64),
+        ])
+        
+        self.out_layer = nn.Conv3d(64, channels_out, kernel_size=1)
 
         if not num_classes == (torch.tensor([2310]).to(device=self.device)):
-            self.label_emb = nn.Embedding(num_classes, time_dim)
+            self.label_emb = nn.Embedding(num_classes, time_embed_dim)
 
     def pos_encoding(self, t, channels):
-        inv_freq = 1.0 / (10000
-            ** (torch.arange(0, channels, 2, device=self.device).float() / channels)
-        )
-        pos_enc_a = torch.sin(t.repeat(1, channels // 2) * inv_freq)
-        pos_enc_b = torch.cos(t.repeat(1, channels // 2) * inv_freq)
-        pos_enc = torch.cat([pos_enc_a, pos_enc_b], dim=-1)
-        return pos_enc
+            num_timescales = channels // 2
+            inv_freq = 1 / (10000** (torch.arange(0, channels, 2, device=self.device) / channels))
+            in_pos = t.repeat(1, num_timescales) * inv_freq
+            return torch.cat([torch.sin(in_pos), torch.cos(in_pos)], dim=-1)
+    
 
     def forward(self, x, t, y):
         t = t.unsqueeze(-1).type(torch.float)
-        t = self.pos_encoding(t, self.time_dim)
+        t = self.pos_encoding(t, self.time_embed_dim)
 
         if not y == (torch.tensor([2310]).to(device=self.device)):
             t += self.label_emb(y)
 
-        x1 = self.inc(x)
-        x2 = self.down1(x1, t)
-        x3 = self.down2(x2, t)
-        x4 = self.down3(x3, t)
+        in1 = self.in_layer(x)
 
-        x4 = self.bot1(x4)
-        x4 = self.bot2(x4)
-        x4 = self.bot3(x4)
+        down1 = self.down_blocks[0](in1,t)
+        down2 = self.down_blocks[1](down1,t)
+        down3 = self.down_blocks[2](down2,t)
 
-        x = self.up1(x4, x3, t)
-        x = self.up2(x, x2, t)
-        x = self.up3(x, x1, t)
-        output = self.outc(x)
-        return output
+        mid = self.middle_blocks[0](down3)
+        mid = self.middle_blocks[1](mid)
+        mid = self.middle_blocks[2](mid)
+
+        up = self.up_blocks[0](mid,down2,t)
+        up = self.up_blocks[1](up,down1,t)
+        up = self.up_blocks[2](up,in1,t)
+
+        out1 = self.out_layer(up)
+
+        return out1
 
 
 if __name__ == '__main__':
-    net = UNetModel(device="cpu",channels_in=1,channels_out=1)
+    net = UNetModel_conditional(device="cpu",channels_in=1,channels_out=1,num_classes=6)
     print(sum([p.numel() for p in net.parameters()]))
     x = torch.randn(1, 1, 64, 64, 64)
     t = x.new_tensor([500] * x.shape[0])
-    # y = x.new_tensor([4] * x.shape[0]).int()
+    y = x.new_tensor([4] * x.shape[0]).int()
     # print(y)
-    print(net(x,t).shape)
+    print(net(x,t,y).shape)

@@ -51,16 +51,9 @@ def vb_term (model,x_0, x_t, t,locked_output,var,y=None):
         """
 
         (true_mean, true_var, true_log_var) = q_posterior_mean_variance(x_0, x_t, t,var)
-        # print('mean, var, log_var')
-        # print(true_mean.shape)
-        # print(true_var.shape)
-        # print(true_log_var.shape)
         
         model_mean, model_variance, model_log_variance, eps_from_x_0 = p_mean_variance(model, x_t, t,var,y)
-        # print(model_mean.shape)
-        # print(model_variance.shape)
-        # print(model_log_variance.shape)
-        # print(eps_from_x_0.shape)
+        
         kl = normal_kl(
             true_mean, true_log_var, model_mean, model_log_variance
         )
@@ -124,8 +117,6 @@ def p_mean_variance(model, x_t, t,var_schedule,y=None):
                  - 'pred_xstart': the prediction for x_0.
         """
 
-        B, C = x_t.shape[:2]
-        # print(f'C: {C}')
         if not y == None:
             model_output = model(x_t, t,y)
         else:
@@ -152,14 +143,6 @@ def p_mean_variance(model, x_t, t,var_schedule,y=None):
 
         return (model_mean, model_variance, model_log_variance, eps_from_x_0)
 
-# def p_sample(model,x,t):
-#     output = p_mean_variance(model,x,t)
-#     noise = th.randn_like(x)
-#     nonzero_mask = (
-#         (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
-#     )  # no noise when t == 0
-#     assert nonzero_mask.shape[0] == t.shape[0]
-#     sample = out["mean"] + nonzero_mask * th.exp(0.5 * out["log_variance"]) * noise
 
 def normal_kl(mean1, logvar1, mean2, logvar2):
     """

@@ -4,7 +4,7 @@ import os
 from torch.utils.data import DataLoader
 
 
-def gather_npy_filenames(directory_path): #CHANGE TO TENSOR
+def gather_npy_filenames(directory_path): 
     file_extension = ".npy"
     npy_files = [file for file in os.listdir(directory_path) if file.endswith(file_extension)]
     return npy_files
@@ -21,21 +21,15 @@ def label_gathered_datasets(npy_files,directory_path):
     }
     for file in npy_files:
         print(file)
-        path = directory_path+'\\'+file
+        path = directory_path+'/'+file
         data = np.load(path)
         print('loaded')
         label = file[6:-5]
         labeled = [([vox],label_map[label]) for vox in data]
-        # map_func = np.vectorize(add_label, excluded=['label'])
-        # labeled = map_func(data,label=label)
-        # print(labeled[35])
         total_ds.append(labeled)
-    # print(total_ds)
-    # for x in total_ds:
-    #     print(np.array(x).shape)
+
     total_ds = np.concatenate(total_ds)
     return np.array(total_ds)
-    # return np.random.shuffle(total_ds)
 
 def add_label(model,label):
     return (model,label)

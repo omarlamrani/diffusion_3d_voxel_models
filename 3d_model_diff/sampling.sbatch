@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 #SBATCH --job-name=voxel_models # Job name for tracking
-#SBATCH --partition=eagle    # Partition you wish to use (see above for list)
+#SBATCH --partition=falcon    # Partition you wish to use (see above for list)
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4    # Number of CPU threads used by your job
 #SBATCH --gres=gpu:1 

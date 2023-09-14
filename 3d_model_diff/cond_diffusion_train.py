@@ -52,7 +52,7 @@ def train_model():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--epochs",
-                        default=501,
+                        default=502,
                         help="amout of passes through the dataset",
                         type=int)
     
@@ -62,12 +62,12 @@ def train_model():
                         type=str)
     
     parser.add_argument("--sched",
-                        default='cos',
+                        default='cosine',
                         help="choose between cosine or linear schedule",
                         type=str)
     
     parser.add_argument("--timesteps",
-                        default=5,
+                        default=750,
                         help="choose noising timesteps",
                         type=int)
     
@@ -96,12 +96,12 @@ def train_model():
 
     if loss_type == 'mse':
         loss_func = nn.MSELoss(device=device)
-        model = model = UNet_conditional(device=device,num_classes=6).float().to(device)
+        model = model = UNetModel_conditional(device=device,num_classes=6).float().to(device)
     else:
         loss_func = HybridLoss(device=device)
-        model = UNet_conditional(device=device,c_out=2,num_classes=6).float().to(device)
+        model = UNetModel_conditional(device=device,channels_out=2,num_classes=6).float().to(device)
 
-    data_path = 'C:\\Users\\lamra\\OneDrive\\test\\Desktop\\fresh_diffusion_2'
+    data_path = '/dcs/pg22/u2294454/fresh_diffusion_2'
     files = gather_npy_filenames(data_path)
     labeled_data = label_gathered_datasets(files,data_path)
     dataloader = label_dataloader(labeled_data)
@@ -135,9 +135,9 @@ def train_model():
             print(f'==> EPOCH N*{epoch}')
             for i, vox_models, labels,o in enumerate(dataloader):
                 print(o)
-                print(type(o))
-                print(vox_models)
-                print((vox_models))
+                # print(type(o))
+                # print(vox_models)
+                # print((vox_models))
                 vox_models = vox_models.to(device)
                 if np.random.random() < 0.1:
                     labels = torch.tensor([2310]).to(device)
@@ -152,7 +152,7 @@ def train_model():
                 optimizer.step()
                 if ema_option: ema.step_ema(mod_copy_ema,model)
                 epoch_loss = loss
-            if (epoch%50 == 0 and not epoch == 0):
+            if ((epoch%60 == 0 or epoch%100 == 0) and not epoch == 0):
                 torch.save(model.state_dict(),'epoch_model_cosine_var'+str(epoch)+'_uncond'+'.pth')
                 torch.save(mod_copy_ema.state_dict(), 'epoch_ema_cosine_var'+str(epoch)+'_uncond'+'.pth')
                 torch.save(optimizer.state_dict(), 'epoch_opt_cosine_var'+str(epoch)+'_uncond'+'.pth')
@@ -162,17 +162,21 @@ def train_model():
         for epoch in range(epochs):
             print(f'==> EPOCH N*{epoch} <==')
             for i, (vox_models, labels) in enumerate(dataloader):
-                print(vox_models)
-                print(type(vox_models))
-                print(labels)
-                print(type(labels))
+                # print(vox_models)
+                # print(type(vox_models))
+                # print(labels)
+                # print(type(labels))
                 vox_models = vox_models.float().to(device)
+                if np.random.random() < 0.1:
+                    labels = torch.tensor([2310]).to(device)
+                #  print('None')
+                labels = labels.to(device)
                 t = var_schedule.sample_timesteps(vox_models.shape[0]).to(device)
                 # forward q_sample
                 x_t, noise = var_schedule.fwd_diff_t(vox_models,t)
                 x_t.to(device)
                 noise.to(device)
-                print(i)
+                # print(i)
                 # KL_RESCALED LOSS_TYPE ==> HYBRID LOSS
                 mod_out = model(x_t.float(),t,labels).to(device) # 1st 3 channels (dim1) = mean, last 3 = var
                 # print(mod_out.shape) # (B,6,64,64)
@@ -206,7 +210,7 @@ def train_model():
             print(epoch_loss)
 
 
-            if (epoch%50 == 0 and not epoch == 0):
+            if epoch%60 == 0 or epoch%100 == 0:
                 torch.save(model.state_dict(),'epoch_model_cosine_var'+str(epoch)+'_uncond'+'.pth')
                 torch.save(mod_copy_ema.state_dict(), 'epoch_ema_cosine_var'+str(epoch)+'_uncond'+'.pth')
                 torch.save(optimizer.state_dict(), 'epoch_opt_cosine_var'+str(epoch)+'_uncond'+'.pth')
