@@ -1,13 +1,9 @@
 import open3d as o3d
 import numpy as np
-from base_unet_3d_new import *
-import torch
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from unet_modules import *
 from os.path import isfile, join
 from os import listdir
-from torch.utils.data import DataLoader
-from data_utils import load_3d_model, visualize_model
+
 
 '''
 
@@ -51,5 +47,5 @@ def gather_data(folder_name):
     return dataset
 
 if __name__ == '__main__':
-    toilet_data = gather_data('/dcs/pg22/u2294454/fresh_diffusion_2/3d_dataset/monitor/train/')
-    print(toilet_data)
+    data = gather_data('/dcs/pg22/u2294454/fresh_diffusion_2/3d_dataset/monitor/train/')
+    np.save('test_vox_data.npy',data)

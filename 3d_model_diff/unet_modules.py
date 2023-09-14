@@ -31,35 +31,36 @@ class EMA:
         ema_model.load_state_dict(model.state_dict())
 
 
-class SelfAttention(nn.Module):
-
+class AttentionLayer(nn.Module):
     ''' Attempted to be used, but due to high dimensionality, completely destroys GPU's V-RAM'''
+
     def __init__(self, channels, size):
-        super(SelfAttention, self).__init__()
+        super(AttentionLayer, self).__init__()
         self.channels = channels
         self.size = size
-        self.mha = nn.MultiheadAttention(channels, 1, batch_first=True)
-        self.ln = nn.LayerNorm([channels])
-        self.ff_self = nn.Sequential(
-            nn.LayerNorm([channels]),
-            nn.Linear(channels, channels),
-            nn.GELU(),
-            nn.Linear(channels, channels),
-        )
+        self.attention = nn.MultiheadAttention(channels, 2)
+        self.layer_norm1 = nn.LayerNorm([channels])
+        self.line1 = nn.Linear(channels, channels)
+        self.act = nn.GELU(),
+        self.line2 = nn.Linear(channels, channels),
+        self.layer_norm2 = nn.LayerNorm([channels])
 
     def forward(self, x):
 
         x = x.view(-1, self.channels, self.size * self.size * self.size)
-        x = x.swapaxes(1, 2)
-        x_ln = self.ln(x)
-        attention_value, _ = self.mha(x_ln, x_ln, x_ln)
+        x = x.transpose(1, 2) 
+        x_ln_1 = self.layer_norm1(x)
+        attention_value, _ = self.self_attention(x_ln_1, x_ln_1, x_ln_1)
         attention_value = attention_value + x
-        attention_value = self.ff_self(attention_value) + attention_value
+        x_ff = self.line1(attention_value)
+        x_ff = self.act(x_ff)
+        x_ff = self.line2(x_ff)
+        x_ln_2 = self.layer_norm2(x_ff + attention_value)
 
-        return attention_value.swapaxes(2, 1).view(-1, self.channels, self.size, self.size, self.size)
+        return x_ln_2.transpose(1, 2).view(-1, self.channels, self.size, self.size, self.size)
 
 
-class DoubleAdjConv(nn.Module): #gud
+class DoubleAdjConv(nn.Module): 
     def __init__(self, in_channels, out_channels, mid_channels=None, residual=False):
         super().__init__()
         self.residual = residual
@@ -82,7 +83,7 @@ class DoubleAdjConv(nn.Module): #gud
         else:
             return out
 
-class DownsampleBlock(nn.Module): #gud
+class DownsampleBlock(nn.Module): 
     def __init__(self, in_channels, out_channels, time_embed_dim=256):
         super(DownsampleBlock, self).__init__()
         self.maxpool = nn.MaxPool3d(2)
@@ -102,12 +103,6 @@ class DownsampleBlock(nn.Module): #gud
         
         return x + emb
 
-    # def forward(self, x, t):
-    #     x = self.maxpool_conv(x)
-    #     emb = self.emb_layer(t)[:, :, None, None, None].repeat(1, 1, x.shape[-3],x.shape[-2], x.shape[-1])
-    #     return (x + emb)
-
-
 class UpsampleBlock(nn.Module): # gud
     def __init__(self, in_channels, out_channels, time_embed_dim=256):
         super(UpsampleBlock, self).__init__()
@@ -120,13 +115,9 @@ class UpsampleBlock(nn.Module): # gud
         self.linear = nn.Linear(time_embed_dim, out_channels)
 
     def forward(self, x, skip_connect_x, t):
-        # print('befor up')
-        # print(x.shape)
-        # print(skip_x.shape)
+
         x = self.up(x)
-        # print('after up')
-        # print(x.shape)
-        # print(skip_x.shape)
+
         x = torch.cat([skip_connect_x, x], dim=1)
         x = self.double_conv1(x)
         x = self.double_conv2(x)
@@ -135,28 +126,6 @@ class UpsampleBlock(nn.Module): # gud
         emb = emb.unsqueeze(2).unsqueeze(3).unsqueeze(4).expand_as(x)
         
         return x + emb
-
-
-# class Up(nn.Module):
-#     def __init__(self, in_channels, out_channels, emb_dim=256):
-#         super().__init__()
-
-#         self.up = nn.Upsample(scale_factor=2, mode="trilinear", align_corners=True)
-#         self.conv = nn.Sequential(
-#             DoubleConv(in_channels, in_channels, residual=True),
-#             DoubleConv(in_channels, out_channels, in_channels // 2),
-#         )
-#         self.silu = nn.SiLU()
-#         self.linear = nn.Linear(emb_dim, out_channels)
-
-#     def forward(self, x, skip_x, t):
-       
-#         x = self.up(x)
-#         x = torch.cat([skip_x, x], dim=1)
-#         x = self.conv(x)
-#         emb = self.linear(self.silu(t))
-#         emb = emb.unsqueeze(2).unsqueeze(3).unsqueeze(4).expand_as(x)
-#         return x + emb
 
 
 class UNetModel(nn.Module): #gud
@@ -214,27 +183,6 @@ class UNetModel(nn.Module): #gud
         out1 = self.out_layer(up)
 
         return out1
-        # x1 = init
-        # # Downward pass
-        # skip_connections = []
-        # for down_block in self.down_blocks:
-        #     x1 = down_block(x1, t)
-        #     skip_connections.append(x1)
-        
-        # # Bottom block
-        # x_bot = x1
-        # for mid_block in self.middle_blocks:
-        #     x_bot = mid_block(x_bot)
-
-        # # Upward pass
-        # skip_connections.pop()
-        # x_up_1 = self.up_blocks[0](x_bot,skip_connections.pop(),t)
-        # x_up_2 = self.up_blocks[1](x_up_1,skip_connections.pop(),t)
-        # x_up_3 = self.up_blocks[2](x_up_2,init,t)
-
-        # output = self.out_layer(x_up_3)
-
-        # return output
 
 class UNetModel_conditional(nn.Module):
     def __init__(self, channels_in=1, channels_out=1, time_embed_dim=256, num_classes=-1, device="cuda"):

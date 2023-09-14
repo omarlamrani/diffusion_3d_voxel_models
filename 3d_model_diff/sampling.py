@@ -1,11 +1,120 @@
-from base_unet_3d_new import UNetModel
+from unet_modules import UNetModel
 from var_schedule import *
 from tqdm import tqdm
 import torch
 from hybrid_loss import *
-from data_utils import load_3d_model,visualize_model
+from data_load import load_3d_model
+from visualize import visualize_model
 import os
 from os.path import abspath
+import random
+import argparse
+
+def sample_3d_model():
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--epochs",
+                        default=502,
+                        help="amout of passes through the dataset",
+                        type=int)
+
+    parser.add_argument("--device",
+                        default='cuda',
+                        help="choose between cpu or cuda(gpu)",
+                        type=str)
+
+    parser.add_argument("--sched",
+                        default='cosine',
+                        help="choose between cosine or linear schedule",
+                        type=str)
+
+    parser.add_argument("--timesteps",
+                        default=5,
+                        help="choose noising timesteps",
+                        type=int)
+
+    parser.add_argument("--s_type",
+                        default='dataset',
+                        help="choose between 'model' or 'dataset' sampling ",
+                        type=str)
+    
+    parser.add_argument("--loss",
+                        default='mse',
+                        help="choose between 'mse' or 'hybrid' sampling ",
+                        type=str)
+    
+    parser.add_argument("--object",
+                        default=None,
+                        help="choose between all 6 classes (monitor,desk,chair,bathtub,toilet,bed) ",
+                        type=str)
+
+    args = parser.parse_args()
+
+    epochs = args.epochs
+    device = args.device
+    sched_type = args.sched
+    timesteps = args.timesteps
+    sample_type = args.s_type
+    object = args.object
+    loss = args.loss
+
+    if sample_type == 'dataset':
+
+        path = 'voxel_'+object+'s.npy'
+        dataset = np.load(path,mmap_mode='r')
+        rand_idx = random.randint(0,len(dataset)-1)
+        rand_model = dataset[rand_idx]
+        visualize_model(rand_model)
+
+    elif sample_type == 'model':
+
+        if loss == 'mse':
+
+            cwd = os.getcwd()
+            path = cwd+'/GOOD_MSE_MODEL.pth'
+            model = UNetModel(device=device).to(device)
+            model.load_state_dict(torch.load(path,map_location=device))
+            model.eval()
+            var = VarianceScheduler(timesteps=500,device=device,type=sched_type)
+            x = sample(model,timesteps,device,var)
+            x = x.to(device)
+            print('sample done')
+            print(x.shape)
+            torch.save(x,'mse_model_sample.pt')
+
+
+        elif loss == 'hybrid':
+
+            cwd = os.getcwd()
+
+            if object == None:
+                path = cwd+'/GOOD_VAR_MODEL.pth'
+                model = UNetModel(device=device,channels_out=2).to(device)
+                model.load_state_dict(torch.load(path,map_location=device))
+                model.eval()
+                var = VarianceScheduler(timesteps=500,device=device,type=sched_type)
+                x = sample_with_var(model,timesteps,device,var)
+                x = x.to(device)
+                print('sample done')
+                
+                torch.save(x,'hybrid_model_sample.pt')
+
+            else:
+                path = cwd+'/GOOD_COND.pth'
+                model = UNetModel(device=device).to(device)
+                model.load_state_dict(torch.load(path,map_location=device))
+                model.eval()
+                var = VarianceScheduler(timesteps=500,device=device,type=sched_type)
+                x = sample(model,timesteps,device,var)
+                x = x.to(device)
+                print('sample done')
+                
+                torch.save(x,'cond_model_sample.pt')
+
+        else:
+            print('Please choose a suitable loss type (mse) or (hybrid)')
+
 
 
 def sample(model,timesteps,device,var_schedule): 

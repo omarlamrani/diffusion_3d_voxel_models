@@ -1,15 +1,9 @@
 import torch
 import torch.nn.functional as F
-import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 # from voxelization import *
-from base_unet_3d_new import *
-from tqdm import tqdm
-from PIL import Image
-import torchvision.transforms as T
-# from scipy.misc import imsave
-# from hybrid_loss import *
+from data_load import *
 import os
 
 
